@@ -8,13 +8,17 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 from detectron2.structures import BoxMode
-
+import pdb
+import matplotlib.pyplot as plt
+import json
 
 # convert ImageJ labels to coco format dataset
+
+
 class ImageJ2COCO:
 
     # initialize the class
-    def __init__(self, image_path, label_path, output_path, start_index=0, end_index="all", image_nr=1, id_starter=10):
+    def __init__(self, image_path, label_path, output_path, start_index=0, end_index="all", image_nr=1, id_starter=10, min_intensity=0, max_intensity=65000):
 
         # path info
         self.image_path = image_path
@@ -27,6 +31,27 @@ class ImageJ2COCO:
         self.image_nr = image_nr
         self.id_starter = id_starter
 
+        # 16 to 8 converter parameters
+        self.min_intensity = min_intensity
+        self.max_intensity = max_intensity
+
+    # 16 bits image to 8 bits using min/max intensity window
+    def image_converter(self, image):
+
+        # load parameters
+        min_intensity = self.min_intensity
+        max_intensity = self.max_intensity
+
+        # check min/max intensities
+        assert min_intensity >= 0
+        assert max_intensity < 256*256
+
+        # convert
+        image = image.astype(float)
+        np.clip(image, min_intensity, max_intensity, out=image)
+        image -= min_intensity
+        return ((255. / (max_intensity - min_intensity)) * image).astype("uint8")
+
     # reading ImageJ Freehand ROIs from .zip file. Labels are expected to be freehand in ImaheJ.
     def read_imagej_rois(self):
 
@@ -35,6 +60,7 @@ class ImageJ2COCO:
 
         # loading rois
         rois = read_roi_zip(label_path)
+        print(f"Total number of ROIs are: {len(rois.keys())}")
 
         # save to self
         self.rois = rois
@@ -68,11 +94,15 @@ class ImageJ2COCO:
         selected_frames = selected_video[np.random.choice(
             a=selected_video.shape[0], size=image_nr, replace=False)]
 
+        # normalization step (Hint: test number of channels on detectron2 (1 or 3?))
+        for i in range(selected_frames.shape[0]):
+            selected_frames[i] = self.image_converter(selected_frames[i])
+
         # write images in png format
         print("start saving images!")
         for i in tqdm(range(selected_frames.shape[0])):
             cv2.imwrite(os.path.join(self.output_path,
-                        f"{id_starter + i}.png"), selected_frames[i])
+                        f"{id_starter + i}.png"), cv2.cvtColor(selected_frames[i], cv2.COLOR_GRAY2BGR).astype("uint8"))
 
     # convert to coco
     def convert2COCO(self):
@@ -82,7 +112,7 @@ class ImageJ2COCO:
         frame_path = self.output_path
 
         # get all image in directory
-        image_list = os.listdir()
+        image_list = os.listdir(frame_path)
 
         # get annotations
         annotations = self.annotations
@@ -155,7 +185,7 @@ class ImageJ2COCO:
         category_id = 0
 
         # create empty annotation array
-        annotation = []
+        annotations = []
 
         # create annotation list
         for k, v in rois.items():
@@ -181,14 +211,14 @@ class ImageJ2COCO:
                 bbox = [min(x), min(y), max(x) - min(x), max(y) - min(y)]
 
             # create segmentation dictionary
-            annotation.append({"iscrowd": is_crowd,
+            annotations.append({"iscrowd": is_crowd,
                                "segmentation": xy,
-                               "bbox": bbox,
-                               "bbox_mode": BoxMode.XYWH_ABS,
-                               "category_id": category_id})
+                                "bbox": bbox,
+                                "bbox_mode": BoxMode.XYWH_ABS,
+                                "category_id": category_id})
 
             # save annotation to self
-            self.annotation = annotation
+            self.annotations = annotations
 
     # loading h5 file
     def load_h5(self):
@@ -199,7 +229,8 @@ class ImageJ2COCO:
         # load h5 file
         File = h5py.File(image_path, 'r')
         for name in File.keys():
-            print(name, '\n')
+            print("All keys; ")
+            print(f"        {name}")
 
         # get correct key from user
         data_key = input("Please give data key from printed keys!")
@@ -212,3 +243,23 @@ class ImageJ2COCO:
 
         # put video in self
         self.video = video
+
+
+# saving and loading dataset in json format
+# saveing dataset
+def save_json(file, save_path, file_name):
+
+    with open(os.path.join(save_path, file_name) + '.json', "w") as f:
+        json.dump(file, f)
+
+    print("dataset is saved as json file!")
+
+
+# loading dataset
+def load_json(load_path):
+
+    with open(load_path, "r") as f:
+        dataset = json.load(f)
+
+    print("dataset is loaded!")
+    return dataset
