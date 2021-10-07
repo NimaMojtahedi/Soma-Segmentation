@@ -26,7 +26,7 @@ def detectron2_config(num_classes, output_path):
     #cfg.SOLVER.MAX_ITER = 40000
     #cfg.SOLVER.STEPS = (20, 10000, 20000)
     #cfg.SOLVER.gamma = 0.5
-    cfg.SOLVER.IMS_PER_BATCH = 4
+    cfg.SOLVER.IMS_PER_BATCH = 2
 
     # Test parameters
     cfg.TEST.DETECTIONS_PER_IMAGE = 25

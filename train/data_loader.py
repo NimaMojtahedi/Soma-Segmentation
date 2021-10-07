@@ -13,9 +13,9 @@ def load_dataset(data_path):
 
 
 # register and define classes
-def register(dataset, classes, dataset_name="train"):
+def detectron2_register(dataset_func, classes, dataset_name="train"):
 
-    DatasetCatalog.register(dataset_name, dataset)
+    DatasetCatalog.register(dataset_name, dataset_func)
     MetadataCatalog.get(dataset_name).set(thing_classes=classes)
 
     return MetadataCatalog.get(dataset_name)

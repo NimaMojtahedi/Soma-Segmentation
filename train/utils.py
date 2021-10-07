@@ -18,7 +18,7 @@ import json
 class ImageJ2COCO:
 
     # initialize the class
-    def __init__(self, image_path, label_path, output_path, start_index=0, end_index="all", image_nr=1, id_starter=10, min_intensity=0, max_intensity=65000):
+    def __init__(self, image_path, label_path, output_path, key, start_index=0, end_index="all", image_nr=1, id_starter=10, min_intensity=0, max_intensity=65000):
 
         # path info
         self.image_path = image_path
@@ -34,6 +34,9 @@ class ImageJ2COCO:
         # 16 to 8 converter parameters
         self.min_intensity = min_intensity
         self.max_intensity = max_intensity
+
+        # data key (h5)
+        self.key = key
 
     # 16 bits image to 8 bits using min/max intensity window
     def image_converter(self, image):
@@ -212,7 +215,7 @@ class ImageJ2COCO:
 
             # create segmentation dictionary
             annotations.append({"iscrowd": is_crowd,
-                               "segmentation": xy,
+                               "segmentation": [xy],
                                 "bbox": bbox,
                                 "bbox_mode": BoxMode.XYWH_ABS,
                                 "category_id": category_id})
@@ -226,6 +229,9 @@ class ImageJ2COCO:
         # getting video path
         image_path = self.image_path
 
+        # key
+        data_key = self.key
+
         # load h5 file
         File = h5py.File(image_path, 'r')
         for name in File.keys():
@@ -233,7 +239,7 @@ class ImageJ2COCO:
             print(f"        {name}")
 
         # get correct key from user
-        data_key = input("Please give data key from printed keys!")
+        #data_key = input("Please give data key from printed keys!")
 
         # check if the given key is in the keys
         assert data_key in File.keys()
