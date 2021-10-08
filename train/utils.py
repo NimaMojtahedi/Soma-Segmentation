@@ -18,7 +18,7 @@ import json
 class ImageJ2COCO:
 
     # initialize the class
-    def __init__(self, image_path, label_path, output_path, key, start_index=0, end_index="all", image_nr=1, id_starter=10, min_intensity=0, max_intensity=65000):
+    def __init__(self, image_path, label_path, output_path, key, start_index=[0], end_index=["all"], image_nr=[1], id_starter=[10], min_intensity=[0], max_intensity=[65000]):
 
         # path info
         self.image_path = image_path
@@ -38,12 +38,18 @@ class ImageJ2COCO:
         # data key (h5)
         self.key = key
 
-    # 16 bits image to 8 bits using min/max intensity window
-    def image_converter(self, image):
+        # check list length for inputs (the only exception is output_path which has to be 1 location for all files)
+        assert len(image_path) == len(label_path)
+        assert len(image_path) == len(key)
+        assert len(image_path) == len(start_index)
+        assert len(image_path) == len(end_index)
+        assert len(image_path) == len(image_nr)
+        assert len(image_path) == len(id_starter)
+        assert len(image_path) == len(min_intensity)
+        assert len(image_path) == len(max_intensity)
 
-        # load parameters
-        min_intensity = self.min_intensity
-        max_intensity = self.max_intensity
+    # 16 bits image to 8 bits using min/max intensity window
+    def image_converter(self, image, min_intensity, max_intensity):
 
         # check min/max intensities
         assert min_intensity >= 0
@@ -56,26 +62,18 @@ class ImageJ2COCO:
         return ((255. / (max_intensity - min_intensity)) * image).astype("uint8")
 
     # reading ImageJ Freehand ROIs from .zip file. Labels are expected to be freehand in ImaheJ.
-    def read_imagej_rois(self):
-
-        # roi_label path
-        label_path = self.label_path
+    def read_imagej_rois(self, label_path):
 
         # loading rois
         rois = read_roi_zip(label_path)
         print(f"Total number of ROIs are: {len(rois.keys())}")
 
         # save to self
+        self.rois = []
         self.rois = rois
 
     # read Ca2+ video (in h5 format) and save frames as image. To reduce image number part of video is saved as image.
-    def video2image(self):
-
-        # get data from self
-        start_index = self.start_index
-        end_index = self.end_index
-        image_nr = self.image_nr
-        id_starter = self.id_starter
+    def video2image(self, output_path, start_index, end_index, image_nr, id_starter, min_intensity, max_intensity):
 
         # get video
         video = self.video
@@ -99,12 +97,13 @@ class ImageJ2COCO:
 
         # normalization step (Hint: test number of channels on detectron2 (1 or 3?))
         for i in range(selected_frames.shape[0]):
-            selected_frames[i] = self.image_converter(selected_frames[i])
+            selected_frames[i] = self.image_converter(
+                image=selected_frames[i], min_intensity=min_intensity, max_intensity=max_intensity)
 
         # write images in png format
         print("start saving images!")
         for i in tqdm(range(selected_frames.shape[0])):
-            cv2.imwrite(os.path.join(self.output_path,
+            cv2.imwrite(os.path.join(output_path,
                         f"{id_starter + i}.png"), cv2.cvtColor(selected_frames[i], cv2.COLOR_GRAY2BGR).astype("uint8"))
 
     # convert to coco
@@ -148,34 +147,64 @@ class ImageJ2COCO:
                                 "annotations": annotations})
 
         # save to self
+        self.dataset = []
         self.dataset = dataset
 
     # tranform step (making conceptually similar to scikit-learn)
     def transform(self):
 
         # this function runs all helper function in order to make transformation happens.
-        # 1. read imageJ rois
-        print("step 1: reading imageJ ROIs")
-        self.read_imagej_rois()
 
-        # 2. loading video in h5 format
-        print("step 2: loading video in h5 format")
-        self.load_h5()
+        # load init params
+        # path info
+        image_path = self.image_path
+        label_path = self.label_path
+        output_path = self.output_path
 
-        # 3. change video to series of image and save them
-        print("step 3: transfering video to images")
-        self.video2image()
+        # frame selection from h5 video infos
+        start_index = self.start_index
+        end_index = self.end_index
+        image_nr = self.image_nr
+        id_starter = self.id_starter
 
-        # 4. create annotation dictionary
-        print("step 4: creating annotation dictionary")
-        self.ROIs2Annotation()
+        # 16 to 8 converter parameters
+        min_intensity = self.min_intensity
+        max_intensity = self.max_intensity
 
-        # 5. converting to COCO style data set
-        print("step 5: converting to COCO style dataset")
-        self.convert2COCO()
+        # data key (h5)
+        key = self.key
+
+        # initialize Main dataset
+        main_dataset = []
+
+        # if number of files are more than 1
+        for i in range(len(image_path)):
+
+            # 1. read imageJ rois
+            print("step 1: reading imageJ ROIs")
+            self.read_imagej_rois(label_path=label_path[i])
+
+            # 2. loading video in h5 format
+            print("step 2: loading video in h5 format")
+            self.load_h5(image_path=image_path[i], key=key[i])
+
+            # 3. change video to series of image and save them
+            print("step 3: transfering video to images")
+            self.video2image(output_path=output_path, start_index=start_index[i], end_index=end_index[i], image_nr=image_nr[i],
+                             id_starter=id_starter[i], min_intensity=min_intensity[i], max_intensity=max_intensity[i])
+
+            # 4. create annotation dictionary
+            print("step 4: creating annotation dictionary")
+            self.ROIs2Annotation()
+
+            # 5. converting to COCO style data set
+            print("step 5: converting to COCO style dataset")
+            self.convert2COCO()
+
+            main_dataset.extend(self.dataset)
 
         # return dataset
-        return self.dataset
+        return main_dataset
 
     # get annotation dictionary from rois
     def ROIs2Annotation(self):
@@ -221,22 +250,20 @@ class ImageJ2COCO:
                                 "category_id": category_id})
 
             # save annotation to self
+            self.annotations = []
             self.annotations = annotations
 
     # loading h5 file
-    def load_h5(self):
-
-        # getting video path
-        image_path = self.image_path
+    def load_h5(self, image_path, key):
 
         # key
-        data_key = self.key
+        data_key = key
 
         # load h5 file
         File = h5py.File(image_path, 'r')
         for name in File.keys():
             print("All keys; ")
-            print(f"        {name}")
+            print(f"         {name}")
 
         # get correct key from user
         #data_key = input("Please give data key from printed keys!")
@@ -248,6 +275,7 @@ class ImageJ2COCO:
         video = File[data_key]
 
         # put video in self
+        self.video = []
         self.video = video
 
 
