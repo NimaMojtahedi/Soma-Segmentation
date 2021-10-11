@@ -23,34 +23,56 @@ from config import configuration
 
 if __name__ == "__main__":
 
-    # getting imagej to coco from utils
-    img2coco = ImageJ2COCO(image_path=["G:/Data & Analysis/150802_p3.5_gcamp6/Data/150802_p3.5_gcamp6 H5/150802_a3_1h40min.h5",
-                                       "G:/Data & Analysis/150802_p3.5_gcamp6/Data/150802_p3.5_gcamp6 H5/150802_a3_1h40min.h5"],
-                           label_path=["G:/Data & Analysis/150802_p3.5_gcamp6/Analysis/ROIS and Inside Activities/RoiSetFull.zip",
-                                       "G:/Data & Analysis/150802_p3.5_gcamp6/Analysis/ROIS and Inside Activities/RoiSetFull.zip"],
-                           output_path="C:/Users/admin/Desktop/COCO test2",
-                           start_index=[10000, 12000],
-                           end_index=[12000, 14000],
-                           image_nr=[40, 50],
-                           id_starter=[1, 100],
-                           min_intensity=[100, 100],
-                           max_intensity=[4000, 3000],
-                           key=["GroupHierarchy.Groups.Datasets",
-                                "GroupHierarchy.Groups.Datasets"])
+    # dataloader for train dataset (this custom written data loader is able to load multple datasets from different location)
+    img2coco_train = ImageJ2COCO(image_path=["G:/Data & Analysis/150802_p3.5_gcamp6/Data/150802_p3.5_gcamp6 H5/150802_a3_1h40min.h5",
+                                             "G:/Data & Analysis/150802_p3.5_gcamp6/Data/150802_p3.5_gcamp6 H5/150802_a3_1h40min.h5"],
+                                 label_path=["G:/Data & Analysis/150802_p3.5_gcamp6/Analysis/ROIS and Inside Activities/RoiSetFull.zip",
+                                             "G:/Data & Analysis/150802_p3.5_gcamp6/Analysis/ROIS and Inside Activities/RoiSetFull.zip"],
+                                 output_path="C:/Users/admin/Desktop/test",
+                                 start_index=[10000, 12000],
+                                 end_index=[12000, 14000],
+                                 image_nr=[1400, 1500],
+                                 id_starter=[1, 2000],
+                                 min_intensity=[100, 100],
+                                 max_intensity=[4000, 3000],
+                                 key=["GroupHierarchy.Groups.Datasets",
+                                      "GroupHierarchy.Groups.Datasets"])
 
-    # register train
-    DatasetCatalog.register("train", img2coco.transform)
-    MetadataCatalog.get("train").set(thing_classes=["Soma"])
+    # dataloader for validation dataset (this custom written data loader is able to load multple datasets from different location)
+    img2coco_val = ImageJ2COCO(image_path=["G:/Data & Analysis/150802_p3.5_gcamp6/Data/150802_p3.5_gcamp6 H5/150802_a3_1h40min.h5",
+                                           "G:/Data & Analysis/150802_p3.5_gcamp6/Data/150802_p3.5_gcamp6 H5/150802_a3_1h40min.h5"],
+                               label_path=["G:/Data & Analysis/150802_p3.5_gcamp6/Analysis/ROIS and Inside Activities/RoiSetFull.zip",
+                                           "G:/Data & Analysis/150802_p3.5_gcamp6/Analysis/ROIS and Inside Activities/RoiSetFull.zip"],
+                               output_path="C:/Users/admin/Desktop/test",
+                               start_index=[1000, 1200],
+                               end_index=[20000, 40000],
+                               image_nr=[800, 800],
+                               id_starter=[3000, 4000],
+                               min_intensity=[100, 100],
+                               max_intensity=[4000, 3000],
+                               key=["GroupHierarchy.Groups.Datasets",
+                               "GroupHierarchy.Groups.Datasets"])
+
+    # register train data set
+    DatasetCatalog.register("train", img2coco_train.transform)
+    MetadataCatalog.get("train").set(
+        thing_classes=["soma"])  # define classes as well
+
+    # register validation data set
+    DatasetCatalog.register("val", img2coco_val.transform)
+    MetadataCatalog.get("val").set(
+        thing_classes=["soma"])  # define classes as well
+
     metadata = MetadataCatalog.get("train")
 
     # configuration file
     cfg = configuration(num_classes=1,
-                        train_output_path="C:/Users/admin/Desktop/COCO test2/out",
+                        train_output_path="C:/Users/admin/Desktop/test/out",
                         min_image_size=240,
                         image_per_batch=1,
                         max_iter=150,
-                        model_weights=False,
-                        validation=False)
+                        model_weights="C:/Users/admin/Desktop/test/out/model_final.pth",
+                        validation=True)
 
     # start training
 
