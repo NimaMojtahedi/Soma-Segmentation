@@ -25,7 +25,7 @@ def configuration(num_classes, train_output_path, min_image_size, image_per_batc
 
     # Model parameters
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
-    #cfg.MODEL.BACKBONE.NAME = "build_resnet_backbone"
+    cfg.MODEL.BACKBONE.NAME = "build_resnet_backbone"
 
     # SOLVER parameters
     #cfg.SOLVER.BASE_LR = 0.0002

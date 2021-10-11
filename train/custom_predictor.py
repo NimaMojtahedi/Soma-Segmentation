@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     # starting looping results
     for img in imgs:
-        df = df.append(predict_img(cfg=cfg, img_path=img, save_path=save_path,
+        df = df.append(predict_img(cfg=cfg, img_path=os.path.join(imgs_path, img), save_path=save_path,
                                    img_save=save_img, df_save=False, score_thresh=0.7), ignore_index=True)
 
     # save main dataframe
