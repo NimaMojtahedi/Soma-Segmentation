@@ -9,6 +9,7 @@ from detectron2.utils.visualizer import Visualizer
 import cv2
 import matplotlib.pyplot as plt
 import os
+import pdb
 
 
 def predict_img(cfg, img_path, save_path, img_save=False, df_save=False, score_thresh=0.7):

@@ -11,6 +11,7 @@ from detectron2.structures import BoxMode
 import pdb
 import matplotlib.pyplot as plt
 import json
+from scipy import ndimage
 
 # convert ImageJ labels to coco format dataset
 
@@ -18,7 +19,7 @@ import json
 class ImageJ2COCO:
 
     # initialize the class
-    def __init__(self, image_path, label_path, output_path, key, start_index=[0], end_index=["all"], image_nr=[1], id_starter=[10], min_intensity=[0], max_intensity=[65000]):
+    def __init__(self, image_path, label_path, output_path, key, image_scale, image_rotation=[0], start_index=[0], end_index=["all"], image_nr=[1], id_starter=[10], min_intensity=[0], max_intensity=[65000]):
 
         # path info
         self.image_path = image_path
@@ -38,6 +39,10 @@ class ImageJ2COCO:
         # data key (h5)
         self.key = key
 
+        # image scale/rotation
+        self.image_rotation = image_rotation
+        self.image_scale = image_scale
+
         # check list length for inputs (the only exception is output_path which has to be 1 location for all files)
         assert len(image_path) == len(label_path)
         assert len(image_path) == len(key)
@@ -49,11 +54,22 @@ class ImageJ2COCO:
         assert len(image_path) == len(max_intensity)
 
     # 16 bits image to 8 bits using min/max intensity window
-    def image_converter(self, image, min_intensity, max_intensity):
+    def image_converter(self, image, min_intensity, max_intensity, image_size=False, image_rotation=False):
 
         # check min/max intensities
         assert min_intensity >= 0
         assert max_intensity < 256*256
+
+        # check if image need scaling or rotation
+        if image_size:
+            # check image_size input format
+            assert isinstance(image_size, tuple)
+
+            # resize the image
+            image = cv2.resize(image, image_size, interpolation=cv2.INTER_AREA)
+
+        if image_rotation:
+            image = ndimage.rotate(image, image_rotation)
 
         # convert
         image = image.astype(float)
@@ -62,6 +78,7 @@ class ImageJ2COCO:
         return ((255. / (max_intensity - min_intensity)) * image).astype("uint8")
 
     # reading ImageJ Freehand ROIs from .zip file. Labels are expected to be freehand in ImaheJ.
+
     def read_imagej_rois(self, label_path):
 
         # loading rois
@@ -73,7 +90,7 @@ class ImageJ2COCO:
         self.rois = rois
 
     # read Ca2+ video (in h5 format) and save frames as image. To reduce image number part of video is saved as image.
-    def video2image(self, output_path, start_index, end_index, image_nr, id_starter, min_intensity, max_intensity):
+    def video2image(self, output_path, start_index, end_index, image_nr, id_starter, min_intensity, max_intensity, image_size, image_rotation):
 
         # get video
         video = self.video
@@ -95,16 +112,23 @@ class ImageJ2COCO:
         selected_frames = selected_video[np.random.choice(
             a=selected_video.shape[0], size=image_nr, replace=False)]
 
+        # initialize new list for converted frames
+        new_selected_frames = []
+
         # normalization step (Hint: test number of channels on detectron2 (1 or 3?))
         for i in range(selected_frames.shape[0]):
-            selected_frames[i] = self.image_converter(
-                image=selected_frames[i], min_intensity=min_intensity, max_intensity=max_intensity)
+            new_selected_frames.append(self.image_converter(
+                image=selected_frames[i], image_size=image_size,
+                image_rotation=image_rotation, min_intensity=min_intensity, max_intensity=max_intensity))
+
+        # stack new_selected_frames
+        new_selected_frames = np.stack(new_selected_frames)
 
         # write images in png format
         print("start saving images!")
-        for i in tqdm(range(selected_frames.shape[0])):
+        for i in tqdm(range(new_selected_frames.shape[0])):
             cv2.imwrite(os.path.join(output_path,
-                        f"{id_starter + i}.png"), cv2.cvtColor(selected_frames[i], cv2.COLOR_GRAY2BGR).astype("uint8"))
+                        f"{id_starter + i}.png"), cv2.cvtColor(new_selected_frames[i], cv2.COLOR_GRAY2BGR).astype("uint8"))
 
     # convert to coco
     def convert2COCO(self):
@@ -174,6 +198,10 @@ class ImageJ2COCO:
         # data key (h5)
         key = self.key
 
+        # image scale/rotation
+        image_scale = self.image_scale
+        image_rotation = self.image_rotation
+
         # initialize Main dataset
         main_dataset = []
 
@@ -191,7 +219,8 @@ class ImageJ2COCO:
             # 3. change video to series of image and save them
             print("step 3: transfering video to images")
             self.video2image(output_path=output_path, start_index=start_index[i], end_index=end_index[i], image_nr=image_nr[i],
-                             id_starter=id_starter[i], min_intensity=min_intensity[i], max_intensity=max_intensity[i])
+                             id_starter=id_starter[i], min_intensity=min_intensity[i], max_intensity=max_intensity[i],
+                             image_size=image_scale[i], image_rotation=image_rotation[i])
 
             # 4. create annotation dictionary
             print("step 4: creating annotation dictionary")
