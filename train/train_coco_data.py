@@ -31,9 +31,15 @@ if __name__ == "__main__":
     register_coco_instances("val", {}, "I:/Sina/Medical report segmentation/publaynet/val.json",
                             "I:/Sina/Medical report segmentation/publaynet/val")
 
+    # adding class name
+    MetadataCatalog.get("val").set(
+        thing_classes=["title", "text", "figure", "table", "list"])
+    MetadataCatalog.get("train").set(
+        thing_classes=["title", "text", "figure", "table", "list"])
+
     # configuration file
     cfg = configuration(num_classes=5,
-                        train_output_path="C:/Users/admin/Desktop/COCO test2/out2",
+                        train_output_path="C:/Users/admin/Desktop/test/out",
                         min_image_size=240,
                         image_per_batch=1,
                         max_iter=150,
