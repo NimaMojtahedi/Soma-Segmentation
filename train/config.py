@@ -38,8 +38,8 @@ def configuration(num_classes, train_output_path, min_image_size, image_per_batc
     cfg.TEST.DETECTIONS_PER_IMAGE = 25
 
     # INPUT parameters
-    cfg.INPUT.MIN_SIZE_TRAIN = (min_image_size,)
-    cfg.INPUT.MIN_SIZE_TEST = (min_image_size,)
+    cfg.INPUT.MIN_SIZE_TRAIN = min_image_size
+    cfg.INPUT.MIN_SIZE_TEST = min_image_size
 
     # DATASETS
     if validation:
