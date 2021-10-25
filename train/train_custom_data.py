@@ -16,6 +16,8 @@ from detectron2.utils.visualizer import Visualizer
 import detectron2.data.transforms as T
 from detectron2.data import DatasetMapper   # the default mapper
 from detectron2.data import build_detection_train_loader
+from detectron2.data import build_detection_train_loader, build_detection_test_loader
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 import cv2
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -25,6 +27,9 @@ from config import configuration
 
 
 if __name__ == "__main__":
+
+    # evaluation inference
+    eval_inf = True
 
     # training using custom trainer or default trainer
     default_trainer = False
@@ -113,3 +118,10 @@ if __name__ == "__main__":
         trainer = CustomTrainer(cfg)
         trainer.resume_or_load(resume=False)
         trainer.train()
+
+    # check if evaluation is required
+    if eval_inf:
+        evaluator = COCOEvaluator(
+            "val", cfg, False, output_dir="C:/Users/admin/Desktop/test/out2")
+        val_loader = build_detection_test_loader(cfg, "val")
+        inference_on_dataset(trainer.model, val_loader, evaluator)

@@ -48,6 +48,9 @@ def configuration(num_classes, train_output_path, min_image_size, image_per_batc
         cfg.DATASETS.TEST = ()
     cfg.DATASETS.TRAIN = ('train',)
 
+    # Evaluation steps
+    cfg.TEST.EVAL_PERIOD = 500
+
     # output location
     cfg.OUTPUT_DIR = train_output_path
 
