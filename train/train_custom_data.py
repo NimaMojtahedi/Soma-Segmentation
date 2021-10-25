@@ -13,6 +13,9 @@ import os
 import random
 from detectron2.utils.visualizer import ColorMode
 from detectron2.utils.visualizer import Visualizer
+import detectron2.data.transforms as T
+from detectron2.data import DatasetMapper   # the default mapper
+from detectron2.data import build_detection_train_loader
 import cv2
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -22,6 +25,9 @@ from config import configuration
 
 
 if __name__ == "__main__":
+
+    # training using custom trainer or default trainer
+    default_trainer = False
 
     # dataloader for train dataset (this custom written data loader is able to load multple datasets from different location)
     img2coco_train = ImageJ2COCO(image_path=["G:/Data & Analysis/150802_p3.5_gcamp6/Data/150802_p3.5_gcamp6 H5/150802_a3_1h40min.h5",
@@ -74,8 +80,36 @@ if __name__ == "__main__":
                         model_weights="C:/Users/admin/Desktop/test/out/model_final.pth",
                         validation=True)
 
-    # start training
+    if default_trainer:
 
-    trainer = DefaultTrainer(cfg)
-    trainer.resume_or_load(resume=False)
-    trainer.train()
+        # start training
+        trainer = DefaultTrainer(cfg)
+        trainer.resume_or_load(resume=False)
+        trainer.train()
+
+    else:
+        # start training with custom dataloader and custom data augmentation step
+        class CustomTrainer(DefaultTrainer):
+
+            @classmethod
+            def build_train_loader(cls, cfg):
+                dataloader = build_detection_train_loader(cfg,
+                                                          mapper=DatasetMapper(cfg, is_train=True, augmentations=[
+                                                              T.Resize(
+                                                                  (800, 800)),
+                                                              T.RandomBrightness(
+                                                                  intensity_min=0.5, intensity_max=2),
+                                                              T.RandomContrast(
+                                                                  intensity_min=0.5, intensity_max=2),
+                                                              T.RandomCrop(
+                                                                  crop_type="relative", crop_size=(0.8, 0.8)),
+                                                              T.RandomFlip()
+                                                          ]))
+                return dataloader
+
+        # https://www.kaggle.com/dhiiyaur/detectron-2-compare-models-augmentation
+        # first time install shapely
+
+        trainer = CustomTrainer(cfg)
+        trainer.resume_or_load(resume=False)
+        trainer.train()

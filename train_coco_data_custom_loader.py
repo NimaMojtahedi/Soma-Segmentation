@@ -13,6 +13,9 @@ import os
 import random
 from detectron2.utils.visualizer import ColorMode
 from detectron2.utils.visualizer import Visualizer
+import detectron2.data.transforms as T
+from detectron2.data import DatasetMapper   # the default mapper
+from detectron2.data import build_detection_train_loader
 import cv2
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -45,8 +48,28 @@ if __name__ == "__main__":
                         max_iter=150,
                         model_weights=False, validation=True)
 
-    # start training
+    # start training with custom dataloader and custom data augmentation step
 
-    trainer = DefaultTrainer(cfg)
+    class CustomTrainer(DefaultTrainer):
+
+        @classmethod
+        def build_train_loader(cls, cfg):
+            dataloader = build_detection_train_loader(cfg,
+                                                      mapper=DatasetMapper(cfg, is_train=True, augmentations=[
+                                                          T.Resize((800, 800)),
+                                                          T.RandomBrightness(
+                                                              intensity_min=0.5, intensity_max=2),
+                                                          T.RandomContrast(
+                                                              intensity_min=0.5, intensity_max=2),
+                                                          T.RandomCrop(
+                                                              crop_type="relative", crop_size=(0.8, 0.8)),
+                                                          T.RandomFlip()
+                                                      ]))
+            return dataloader
+
+    # https://www.kaggle.com/dhiiyaur/detectron-2-compare-models-augmentation
+    # first time install shapely
+
+    trainer = CustomTrainer(cfg)
     trainer.resume_or_load(resume=False)
     trainer.train()
