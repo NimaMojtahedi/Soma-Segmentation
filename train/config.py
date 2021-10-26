@@ -3,6 +3,7 @@
 # library
 from detectron2.config import get_cfg
 from detectron2 import model_zoo
+import multiprocessing
 
 
 # custom function to change Detectron2 configuration
@@ -42,7 +43,8 @@ def configuration(num_classes, train_output_path, min_image_size, image_per_batc
     cfg.INPUT.MIN_SIZE_TEST = min_image_size
 
     # DATALOADER
-    cfg.DATALOADER.NUM_WORKERS = 24  # This can be dynamic
+    cfg.DATALOADER.NUM_WORKERS = int(
+        multiprocessing.cpu_count()/4)  # takeing maximum of cpu
 
     # DATASETS
     if validation:
