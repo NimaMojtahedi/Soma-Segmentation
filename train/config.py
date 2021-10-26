@@ -41,6 +41,9 @@ def configuration(num_classes, train_output_path, min_image_size, image_per_batc
     cfg.INPUT.MIN_SIZE_TRAIN = min_image_size
     cfg.INPUT.MIN_SIZE_TEST = min_image_size
 
+    # DATALOADER
+    cfg.DATALOADER.NUM_WORKERS = 24  # This can be dynamic
+
     # DATASETS
     if validation:
         cfg.DATASETS.TEST = ('val',)
